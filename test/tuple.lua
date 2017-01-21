@@ -6,14 +6,12 @@ local wtuple = wtuples.create
 local setwkey = wtuples.setkey
 local getwkey = wtuples.getkey
 
-local vararg = require "vararg"
-local pack = vararg.pack
+local vtuples = require "tuple.vararg"
+local vtuple = vtuples.tuple
 
 local function newvalue(label)
 	--[[
-	local value = newproxy(true)
-	getmetatable(value).__tostring = function() return label end
-	return value
+	return setmetatable({}, { __tostring = function() return label end })
 	--[=[]]
 	return label
 	--]=]
@@ -41,15 +39,15 @@ do
 	print("\n--- Table ------------------------------------------------------\n")
 emptymodules()
 	local map = {}
-	map[tuple(1,2,3)        ] = "1,2,3"
-	map[tuple("A","B","C")  ] = "A,B,C"
-	map[tuple({},{},{})     ] = "{},{},{}"
-	map[tuple(true,{},false)] = "true,{},false"
+	map[tuple(1,2,3)        ] = "%(1, 2, 3%)"
+	map[tuple("A","B","C")  ] = "%(A, B, C%)"
+	map[tuple({},{},{})     ] = "%(table: 0x%x+, table: 0x%x+, table: 0x%x+%)"
+	map[tuple(true,{},false)] = "%(true, table: 0x%x+, false%)"
 collectall()
-	assert(map[tuple(1,2,3)      ] == "1,2,3")
-	assert(map[tuple("A","B","C")] == "A,B,C")
+	assert(map[tuple(1,2,3)      ] == "%(1, 2, 3%)")
+	assert(map[tuple("A","B","C")] == "%(A, B, C%)")
 	for tuple, value in pairs(map) do
-		print(value, tuple())
+		assert(string.match(tostring(tuple), value))
 		map[tuple] = nil
 	end
 collectall()
@@ -78,7 +76,6 @@ collectall()
 	assert(map[tuple(3,2,1)] == strong)
 	assert(map[tuple(C,B,A)] == strong)
 	for tuple, value in pairs(map) do
-		print(value, tuple())
 		assert(tostring(value) == "strong")
 		if type(tuple(2)) == "table" then
 			map[tuple] = nil
@@ -88,6 +85,7 @@ collectall()
 	map[tuple(A,B,C)] = nil
 	map[tuple(3,2,1)] = nil
 	map[tuple(C,B,A)] = nil
+	assert(next(map) == nil)
 collectall()
 emptymodules()
 end
@@ -101,12 +99,13 @@ emptymodules()
 	setwkey(map, wtuple(true,{},false), "true,{},false")
 collectall()
 	assert(getwkey(map, wtuple(1,2,3)) == "1,2,3")
-	for tuple, value in pairs(map) do
-		print(value, tuple())
+	do
+		local tuple, value = next(map)
 		assert(value == "1,2,3")
 		assert(tuple(1) == 1)
 		assert(tuple(2) == 2)
 		assert(tuple(3) == 3)
+		assert(next(map, tuple) == nil)
 	end
 	setwkey(map, wtuple(1,2,3), nil)
 collectall()
@@ -135,7 +134,6 @@ collectall()
 	assert(getwkey(map, wtuple(3,2,1)) == strong)
 	assert(getwkey(map, wtuple(C,B,A)) == strong)
 	for tuple, value in pairs(map) do
-		print(value, tuple())
 		assert(tostring(value) == "strong")
 		assert(type(tuple(2)) ~= "table")
 	end
@@ -148,29 +146,10 @@ emptymodules()
 end
 
 do
-	print("\n--- Function Tuples --------------------------------------------\n")
-	
-	local TupleOf = setmetatable({}, {__mode="v"})
-	local Nil = {}
-	local function tuple(...)
-		local id = tuples.index
-		local values = pack(...)
-		for _, value in values do
-			if value == nil then value = Nil end
-			id = id[value]
-		end
-		local tuple = TupleOf[id]
-		if tuple == nil then
-			tuple = values
-			TupleOf[id] = tuple
-		end
-		return tuple
-	end
-	
-	emptymodules()
+	print("\n--- Vararg Tuples --------------------------------------------\n")
 	do
 		local A,B,C = newvalue("A"), newvalue("B"), newvalue("C")
-		t1 = tuple(A,B,C)
+		t1 = vtuple(A,B,C)
 		local v1,v2,v3 = t1()
 		assert(v1 == A)
 		assert(v2 == B)
@@ -185,14 +164,14 @@ do
 	emptymodules("no")
 	do
 		local A,B,C = t1()
-		t2 = tuple(A,B,C)
+		t2 = vtuple(A,B,C)
 		assert(rawequal(t1, t2))
 	end
 	collectall()
 	emptymodules("no")
 	do
 		local A,B = t1()
-		t3 = tuple(A,B)
+		t3 = vtuple(A,B)
 		local v1,v2 = t3()
 		assert(v1 == A)
 		assert(v2 == B)
@@ -206,7 +185,7 @@ do
 	emptymodules("no")
 	do
 		local A,B = t1()
-		t4 = tuple(A,B,nil)
+		t4 = vtuple(A,B,nil)
 		local v1,v2,v3 = t4()
 		assert(v1 == A)
 		assert(v2 == B)
@@ -223,13 +202,13 @@ do
 	emptymodules("no")
 	do
 		local A,B = t1()
-		t5 = tuple(A,B,nil)
+		t5 = vtuple(A,B,nil)
 		assert(rawequal(t4, t5))
 	end
 	collectall()
 	emptymodules("no")
 	do
-		t6 = tuple(nil,nil,nil)
+		t6 = vtuple(nil,nil,nil)
 		local v1,v2,v3 = t6()
 		assert(v1 == nil)
 		assert(v2 == nil)
@@ -251,10 +230,10 @@ do
 	do
 		--local A,B,C = newvalue("A"), newvalue("B"), newvalue("C")
 		local compares = {
-			[t1str] = tuple(A,B,C),
-			[t3str] = tuple(A,B),
-			[t4str] = tuple(A,B,nil),
-			[t6str] = tuple(nil,nil,nil),
+			[t1str] = vtuple(A,B,C),
+			[t3str] = vtuple(A,B),
+			[t4str] = vtuple(A,B,nil),
+			[t6str] = vtuple(nil,nil,nil),
 		}
 		for oldstr, tuple in pairs(compares) do
 			if oldstr == tostring(tuple) then

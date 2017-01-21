@@ -7,7 +7,6 @@
 local _G = require "_G"
 local getmetatable = _G.getmetatable
 local next = _G.next
-local newproxy = _G.newproxy
 local pairs = _G.pairs
 local select = _G.select
 local setmetatable = _G.setmetatable
@@ -93,11 +92,10 @@ end
 UseTrapOf = memoize(function(tuple)
 	local trap
 	if UseTrapCnt == 0 then
-		trap = newproxy(true)
-		local meta = getmetatable(trap)
-		setmetatable(meta, WeakValues) -- let value of field 'tuple' to be collected
+		local meta = setmetatable({}, WeakValues) -- let value of field 'tuple' to be collected
 		meta.tuple = tuple
 		meta.__gc = unused -- won't be collected because it is a local function
+		trap = setmetatable({}, meta)
 	else
 		trap = UseTrapPool[UseTrapCnt]
 		UseTrapPool[UseTrapCnt] = nil
@@ -175,12 +173,11 @@ end
 local function newentrytrap()
 	local trap
 	if EntryTrapCnt == 0 then
-		trap = newproxy(true)
-		local meta = getmetatable(trap)
-		setmetatable(meta, WeakKeys) -- allow that trapped tuple be collected
+		local meta = setmetatable({}, WeakKeys) -- allow that trapped tuple be collected
 		meta.__gc = entrytrap
 		meta.__index = meta -- easy/fast access to table
 		meta.__newindex = meta -- easy/fast access to table
+		trap = setmetatable({}, meta)
 	else
 		trap = EntryTrapPool[EntryTrapCnt]
 		EntryTrapPool[EntryTrapCnt] = nil

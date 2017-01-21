@@ -9,9 +9,9 @@ local select = _G.select
 local setmetatable = _G.setmetatable
 local tostring = _G.tostring
 
-local table = require "table"
-local concat = table.concat
-local unpacktab = table.unpack or _G.unpack
+local array = require "table"
+local concat = array.concat
+local unpacktab = array.unpack
 
 
 
@@ -19,12 +19,12 @@ local unpacktab = table.unpack or _G.unpack
 local WeakKeys = {__mode="k"}
 local ParentOf = setmetatable({}, WeakKeys)
 local ValueOf = setmetatable({}, WeakKeys)
-local SizeOf = setmetatable({}, WeakKeys)
+local LengthOf = setmetatable({}, WeakKeys)
 
 local function pack(tuple)
 	local values = {}
-	local size = SizeOf[tuple]
-	for i = size, 1, -1 do
+	local length = LengthOf[tuple]
+	for i = length, 1, -1 do
 		tuple, values[i] = ParentOf[tuple], ValueOf[tuple]
 	end
 	return values
@@ -34,29 +34,29 @@ local function unpack(tuple)
 	return unpacktab(pack(tuple))
 end
 
-local function size(tuple)
-	return SizeOf[tuple]
+local function length(tuple)
+	return LengthOf[tuple]
 end
 
 
 
 -- from values to a tuple (weak mode == "kv")
-local Tuple = {__mode="kv", __len=size}
+local Tuple = {__mode="kv", __len=length}
 
 function Tuple:__index(value)
 	local tuple = setmetatable({}, Tuple)
 	ParentOf[tuple] = self
 	ValueOf[tuple] = value
-	SizeOf[tuple] = SizeOf[self]+1
+	LengthOf[tuple] = LengthOf[self]+1
 	self[value] = tuple
 	return tuple
 end
 
 function Tuple:__call(i)
 	if i == nil then return unpack(self) end
-	local size = SizeOf[self]
-	if i == "#" then return size end
-	if i > 0 then i = i-size-1 end
+	local length = LengthOf[self]
+	if i == "#" then return length end
+	if i > 0 then i = i-length-1 end
 	if i < 0 then
 		for _ = 1, -i-1 do
 			self = ParentOf[self]
@@ -67,19 +67,32 @@ end
 
 function Tuple:__tostring()
 	local values = {}
-	for i = SizeOf[self], 1, -1 do
+	for i = LengthOf[self], 1, -1 do
 		self, values[i] = ParentOf[self], tostring(ValueOf[self])
 	end
-	return "<"..concat(values, ", ")..">"
+	return "("..concat(values, ", ")..")"
 end
 
 local index = setmetatable({}, Tuple) -- main tuple that represents the empty tuple
-SizeOf[index] = 0
+LengthOf[index] = 0
+
+local function istuple(value)
+	return getmetatable(value) == Tuple
+end
+
+local function totuple(value)
+	if not istuple(value) then
+		return index[value]
+	end
+	return value
+end
 
 local module = {
 	index = index,
+	istuple = istuple,
+	totuple = totuple,
 	unpack = unpack,
-	size = size,
+	len = length,
 }
 
 -- find a tuple given its values
@@ -91,29 +104,16 @@ function module.create(...)
 	return tuple
 end
 
-function module.istuple(value)
-	return getmetatable(value) == Tuple
-end
-
-function module.totuple(value)
-	if getmetatable(value) ~= Tuple then
-		value = index[value]
-	end
-	return value
-end
-
-function module.concat(tuple, ...)
-	if getmetatable(tuple) ~= Tuple then
-		tuple = index[tuple]
-	end
+function module.concat(value, ...)
+	local tuple = totuple(value)
 	for index = 1, select("#", ...) do
-		local other = select(index, ...)
-		if getmetatable(other) ~= Tuple then
-			tuple = tuple[other]
-		else
-			for _, value in ipairs(pack(other)) do
+		value = select(index, ...)
+		if istuple(value) then
+			for _, value in ipairs(pack(value)) do
 				tuple = tuple[value]
 			end
+		else
+			tuple = tuple[value]
 		end
 	end
 	return tuple
@@ -122,7 +122,7 @@ end
 function module.emptystate()
 	if  (_G.next(ParentOf) == nil)
 	and (_G.next(ValueOf) == nil)
-	and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
+	and (_G.next(LengthOf) == index and _G.next(LengthOf, index) == nil)
 	and (_G.next(index) == nil) then
 		return true
 	end
@@ -130,7 +130,7 @@ function module.emptystate()
 	local Viewer = _G.require "loop.debug.Viewer"
 	Viewer:print("ParentOf ", ParentOf)
 	Viewer:print("ValueOf  ", ValueOf)
-	Viewer:print("SizeOf   ", SizeOf)
+	Viewer:print("LengthOf ", LengthOf)
 	Viewer:print("index    ", index)
 	--]]
 	return false
