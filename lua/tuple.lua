@@ -21,13 +21,17 @@ local ParentOf = setmetatable({}, WeakKeys)
 local ValueOf = setmetatable({}, WeakKeys)
 local SizeOf = setmetatable({}, WeakKeys)
 
-local function unpack(tuple)
+local function pack(tuple)
 	local values = {}
 	local size = SizeOf[tuple]
 	for i = size, 1, -1 do
 		tuple, values[i] = ParentOf[tuple], ValueOf[tuple]
 	end
-	return unpacktab(values, 1, size)
+	return values
+end
+
+local function unpack(tuple)
+	return unpacktab(pack(tuple))
 end
 
 local function size(tuple)
@@ -72,8 +76,14 @@ end
 local index = setmetatable({}, Tuple) -- main tuple that represents the empty tuple
 SizeOf[index] = 0
 
+local module = {
+	index = index,
+	unpack = unpack,
+	size = size,
+}
+
 -- find a tuple given its values
-local function create(...)
+function module.create(...)
 	local tuple = index
 	for i = 1, select("#", ...) do
 		tuple = tuple[select(i, ...)]
@@ -81,25 +91,50 @@ local function create(...)
 	return tuple
 end
 
+function module.istuple(value)
+	return getmetatable(value) == Tuple
+end
 
-
-return {
-	index = index,
-	create = create,
-	unpack = unpack,
-	size = size,
-	
-	emptystate = function()
-		return (_G.next(ParentOf) == nil)
-		   and (_G.next(ValueOf) == nil)
-		   and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
-		   and (_G.next(index) == nil)
-		--or (function()
-		--	local Viewer = _G.require "loop.debug.Viewer"
-		--	Viewer:print("ParentOf ", ParentOf)
-		--	Viewer:print("ValueOf  ", ValueOf)
-		--	Viewer:print("SizeOf   ", SizeOf)
-		--	Viewer:print("index    ", index)
-		--end)()
+function module.totuple(value)
+	if getmetatable(value) ~= Tuple then
+		value = index[value]
 	end
-}
+	return value
+end
+
+function module.concat(tuple, ...)
+	if getmetatable(tuple) ~= Tuple then
+		tuple = index[tuple]
+	end
+	for index = 1, select("#", ...) do
+		local other = select(index, ...)
+		if getmetatable(other) ~= Tuple then
+			tuple = tuple[other]
+		else
+			for _, value in ipairs(pack(other)) do
+				tuple = tuple[value]
+			end
+		end
+	end
+	return tuple
+end
+
+function module.emptystate()
+	if  (_G.next(ParentOf) == nil)
+	and (_G.next(ValueOf) == nil)
+	and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
+	and (_G.next(index) == nil) then
+		return true
+	end
+	--[[
+	local Viewer = _G.require "loop.debug.Viewer"
+	Viewer:print("ParentOf ", ParentOf)
+	Viewer:print("ValueOf  ", ValueOf)
+	Viewer:print("SizeOf   ", SizeOf)
+	Viewer:print("index    ", index)
+	--]]
+	return false
+end
+
+
+return module
