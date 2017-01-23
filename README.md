@@ -1,13 +1,13 @@
 Index
 =====
 
-- [`tuple`](#vararg-manipulation)
-- [`tuple.create`](#varargappend-v-)
-- [`tuple.concat`](#vararglen-)
-- [`tuple.istuple`](#vararginsert-v-i-)
-- [`tuple.size`](#varargmap-f-)
-- [`tuple.totuple`](#varargpack-)
-- [`tuple.unpack`](#varargrange-i-j-)
+- [`tuple`](#tuple-manipulation)
+- [`tuple.create`](#tuplecreate-)
+- [`tuple.concat`](#tupleconcat-)
+- [`tuple.istuple`](#tupleistuple-t-)
+- [`tuple.size`](#tuplesize-t-)
+- [`tuple.totuple`](#tupletotuple-v-)
+- [`tuple.unpack`](#tupleunpack-t-)
 
 Contents
 ========
