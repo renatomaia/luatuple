@@ -1,7 +1,7 @@
 package = "Tuple"
-version = "1.0beta"
+version = "1.0beta-1"
 source = {
-	url = "http://www.tecgraf.puc-rio.br/~maia/lua/packs/luatuple-1.0beta.tar.gz",
+	url = "http://www.tecgraf.puc-rio.br/~maia/lua/packs/tuple-1.0beta.tar.gz",
 }
 description = {
 	summary = "Tuple of Values for Lua.",
@@ -9,7 +9,7 @@ description = {
 		Tuples is a library that provides support for internalized tokens that
 		represent a tuple of Lua values.
 	]],
-	license = "MIT/X11",
+	license = "MIT",
 	homepage = "http://www.tecgraf.puc-rio.br/~maia/lua/tuple",
 	maintainer = "Renato Maia <maia@tecgraf.puc-rio.br>",
 }
